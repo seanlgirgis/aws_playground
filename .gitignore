@@ -1,0 +1,22 @@
+# Secrets and Keys
+*.pem
+*accessKeys.csv
+*.csv
+
+# Environment variables
+.env
+.env.*
+
+# AWS Credentials
+credentials
+config
+config.json
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
