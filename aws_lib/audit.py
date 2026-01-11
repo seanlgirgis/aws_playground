@@ -13,6 +13,9 @@ class CostAuditor:
         # We need different 'clients' for different services:
         self.ec2 = session.resource('ec2')      # For finding Computers (Instances)
         self.ec2_client = session.client('ec2') # For finding NAT Gateways
+        self.rds = session.client('rds')        # For Databases
+        self.lambda_client = session.client('lambda') # For Serverless Functions
+        self.bedrock = session.client('bedrock') # For AI Models
         self.ce = session.client('ce')          # For Cost Explorer ($$$)
 
     def audit_resources(self):
@@ -20,9 +23,13 @@ class CostAuditor:
         Runs a check on expensive resources that might be left running.
         """
         print(f"\nAudit Report for Profile: {self.session.profile_name}")
+        print(f"Timestamp: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
         self._check_ec2()
         self._check_volumes()
         self._check_nat_gateways()
+        self._check_rds()
+        self._check_lambda()
+        self._check_bedrock()
 
     def _check_ec2(self):
         print("\n--- Checking EC2 Instances ---")
@@ -60,6 +67,56 @@ class CostAuditor:
                     print(f"WARNING: NAT Gateway {nat['NatGatewayId']} is AVAILABLE.")
         except ClientError as e:
             print(f"Error checking NAT Gateways: {e}")
+
+    def _check_rds(self):
+        print("\n--- Checking RDS Databases ---")
+        try:
+            # RDS Databases charge per hour if they are 'available' (running).
+            response = self.rds.describe_db_instances()
+            dbs = response['DBInstances']
+            if not dbs:
+                print("OK: No RDS instances found.")
+            else:
+                for db in dbs:
+                    print(f"WARNING: DB Instance {db['DBInstanceIdentifier']} is {db['DBInstanceStatus']} ({db['DBInstanceClass']})")
+        except ClientError as e:
+            print(f"Error checking RDS: {e}")
+
+    def _check_lambda(self):
+        print("\n--- Checking Lambda Functions ---")
+        try:
+            # Lambdas usually cost only when run, but having many CAN imply hidden costs/triggers.
+            # We list them so you know what's there.
+            response = self.lambda_client.list_functions()
+            funcs = response['Functions']
+            if not funcs:
+                print("OK: No Lambda functions found.")
+            else:
+                print(f"Found {len(funcs)} Lambda functions:")
+                for f in funcs:
+                    print(f" - {f['FunctionName']} ({f['Runtime']})")
+        except ClientError as e:
+            print(f"Error checking Lambda: {e}")
+
+    def _check_bedrock(self):
+        print("\n--- Checking Bedrock (AI) ---")
+        try:
+            # Bedrock charges for 'Provisioned Throughput' (reserved capacity).
+            # On-Demand usage is not 'running' resource, so it won't show here unless we query logs.
+            response = self.bedrock.list_provisioned_model_throughputs()
+            models = response.get('provisionedModelSummaries', [])
+            
+            if not models:
+                print("OK: No Provisioned Throughput (Recurring Cost) found.")
+            else:
+                for m in models:
+                    print(f"WARNING: Provisioned Model {m['modelArn']} is Active!")
+        except ClientError as e:
+             # Bedrock might not be enabled in all regions or for all users
+            if "AccessDeniedException" in str(e) or "UnrecognizedClientException" in str(e):
+                 print("Note: Unable to check Bedrock (might not be enabled/available).")
+            else:
+                print(f"Error checking Bedrock: {e}")
 
     def get_monthly_cost(self):
         """

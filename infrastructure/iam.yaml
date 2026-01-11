@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "IAM Users and Groups for Playground"
+
+Resources:
+  # 1. Admin Group
+  # We create a group first, instead of giving permissions directly to the user.
+  # This is a "Smart Engineering" best practice.
+  PlaygroundAdminGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: PlaygroundAdmins
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+        - arn:aws:iam::aws:policy/job-function/Billing # Explicitly added for clarity/access
+
+  # 2. Main User (sean)
+  UserSean:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: sean
+      Groups:
+        - !Ref PlaygroundAdminGroup
+      # We allow Console Access, but we DO NOT set a password here.
+      # You will set it manually in the terminal for security.
+
+Outputs:
+  SeanUserArn:
+    Description: The Amazon Resource Name (ID) for Sean
+    Value: !GetAtt UserSean.Arn
+  SigninURL:
+    Description: Link to login to the console
+    Value: !Sub "https://${AWS::AccountId}.signin.aws.amazon.com/console"

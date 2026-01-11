@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Simple Email Service (SES) Identity Verification"
+
+Parameters:
+  AdminEmail:
+    Type: String
+    Description: "The email address to verify as a sender (and receiver in Sandbox)"
+    Default: "sean.girgis@gmail.com"
+
+Resources:
+  # 1. Email Identity (Sender Verification)
+  # In AWS SES (Simple Email Service), you cannot send emails from just any address.
+  # You must prove you own the email by "Verifying" it.
+  #
+  # Deployment Behavior:
+  # 1. CloudFormation sends a verification email to 'AdminEmail'.
+  # 2. You CLICK the link in that email.
+  # 3. Status changes to "Verified".
+  #
+  # Note: Initially, you are in a "Sandbox". You can only send TO verified emails too.
+  AdminEmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref AdminEmail
+
+Outputs:
+  SenderEmail:
+    Description: "The verified sender email"
+    Value: !Ref AdminEmail

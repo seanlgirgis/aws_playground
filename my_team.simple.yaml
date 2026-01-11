@@ -1,0 +1,31 @@
+# AWS Easy Manager - Team Configuration
+# This is your Source of Truth. Edit this file to manage users.
+
+config:
+  account_id: "" # Will be filled automatically if empty
+  default_password: "ChangeMe123!" # Temporary password for new users
+
+# 1. Define Groups (Roles)
+groups:
+  - name: Developers
+    permissions:
+      - S3FullAccess
+      - EC2ReadOnly
+
+  - name: Finance
+    permissions:
+      - Billing
+
+# 2. Define Users
+users:
+  - name: ghada
+    email: seanlgirgis@gmail.com
+    group: Developers
+
+  - name: katrina
+    email: seanlgirgis@gmail.com
+    group: Finance
+
+  - name: clara
+    email: seanlgirgis@gmail.com
+    group: Finance

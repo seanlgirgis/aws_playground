@@ -52,8 +52,15 @@ This learning environment is controlled via the `cli.py` tool:
 
 ```bash
 # Manage Infrastructure
-python cli.py infrastructure [deploy|destroy|upload]
+python cli.py infrastructure [deploy|destroy|upload] --profile study
 
 # Audit Setup
-python cli.py audit [resources|cost]
+python cli.py audit [resources|cost] --profile study
 ```
+
+### Multi-Account Support
+You can switch between different AWS environments (like personal vs. work) using the `--profile` flag. 
+
+*   **Example**: `python cli.py audit cost --profile study`
+*   **Default**: If you don't specify a profile, it defaults to `study` (or your `AWS_PROFILE` environment variable).
+
