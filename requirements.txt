@@ -1,0 +1,11 @@
+# AWS SDK for Python (The core library for AWS control)
+boto3
+
+# CloudFormation Linter (Validate your CF templates against AWS specs)
+cfn-lint
+
+# Optional: Black for code formatting
+black
+
+# YAML parser (Required for handling CloudFormation templates in scripts)
+PyYAML

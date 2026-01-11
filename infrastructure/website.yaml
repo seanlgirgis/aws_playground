@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Static Website hosted on S3'
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: 'Name for the S3 bucket (must be globally unique). Leave empty to generate one.'
+    Default: ''
+
+Conditions:
+  HasBucketName: !Not [ !Equals [ !Ref BucketName, '' ] ]
+
+Resources:
+  # 1. S3 Bucket
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !If [ HasBucketName, !Ref BucketName, !Ref AWS::NoValue ]
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        IgnorePublicAcls: false
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+      Tags:
+        - Key: Name
+          Value: Playground-Website-Bucket
+  
+  # 2. Bucket Policy
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub 'arn:aws:s3:::${WebsiteBucket}/*'
+
+Outputs:
+  WebsiteURL:
+    Description: URL of the S3 website
+    Value: !GetAtt WebsiteBucket.WebsiteURL
+  BucketName:
+    Description: Name of the created S3 bucket
+    Value: !Ref WebsiteBucket

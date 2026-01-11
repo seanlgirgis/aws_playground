@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Basic Network Infrastructure: VPC, Public Subnet, IGW'
+
+Parameters:
+  VpcCidr:
+    Type: String
+    Default: '10.0.0.0/16'
+    Description: CIDR block for the VPC
+  SubnetCidr:
+    Type: String
+    Default: '10.0.1.0/24'
+    Description: CIDR block for the Public Subnet
+
+Resources:
+  # 1. The VPC
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: Playground-VPC-CFN
+
+  # 2. Internet Gateway
+  MyIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Playground-IGW-CFN
+
+  # 3. Attach IGW to VPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref MyIGW
+
+  # 4. Public Subnet
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: !Ref SubnetCidr
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: Playground-Public-Subnet-CFN
+
+  # 5. Route Table
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: Playground-Public-RT-CFN
+
+  # 6. Route to the Internet
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MyIGW
+
+  # 7. Associate Subnet with Route Table
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+Outputs:
+  VpcId:
+    Description: The ID of the VPC
+    Value: !Ref MyVPC
+    Export:
+      Name: !Sub "${AWS::StackName}-VpcId"
+  PublicSubnetId:
+    Description: The ID of the Public Subnet
+    Value: !Ref PublicSubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnetId"
