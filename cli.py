@@ -3,7 +3,11 @@ import sys       # Library to interact with the system (like exiting)
 from aws_lib.core import SessionManager
 from aws_lib.stacks import StackManager
 from aws_lib.audit import CostAuditor
+from aws_lib.audit import CostAuditor
 from aws_lib.easy_iam import EasyIAMManager
+from aws_lib.easy_iam import EasyIAMManager
+from aws_lib.pipeline import PipelineManager
+from aws_lib.ai import DataAgent
 
 # --- CONSTANTS ---
 # These are names we use everywhere. Storing them here prevents typos later.
@@ -161,6 +165,21 @@ def main():
     manager_parser.add_argument('action', choices=['apply'], help='Action to perform')
     manager_parser.add_argument('spec_file', help='Path to your Simple Spec YAML file')
 
+    # -- Command: pipeline (NEW) --
+    # Allows: python cli.py pipeline deploy --profile study
+    pipeline_parser = subparsers.add_parser('pipeline',
+                                            help='Manage Cloud Data Pipeline',
+                                            parents=[parent_parser])
+    pipeline_parser.add_argument('action', choices=['deploy', 'upload-ingest', 'upload-job', 'create-job', 'start-job', 'create-crawler', 'start-crawler'], help='Action to perform')
+
+    # -- Command: agent (NEW) --
+    # Allows: python cli.py agent ask "How much revenue?" --profile study
+    agent_parser = subparsers.add_parser('agent',
+                                            help='Ask the AI Data Analyst',
+                                            parents=[parent_parser])
+    agent_parser.add_argument('action', choices=['ask'], help='Action to perform')
+    agent_parser.add_argument('question', help='The question you want to ask the data')
+
     # 2. Read the arguments user typed
     args = parser.parse_args()
 
@@ -181,6 +200,81 @@ def main():
         handle_audit(args, session)
     elif args.command == 'manager':
         handle_manager(args, session)
+    elif args.command == 'pipeline':
+        handle_pipeline(args, session)
+    elif args.command == 'agent':
+        handle_agent(args, session)
+
+def handle_agent(args, session):
+    """
+    Handles AI interactions.
+    """
+    agent = DataAgent(session)
+    DB_NAME = 'edu_etl_db'
+    # Athena needs a bucket to store query results
+    RESULTS_LOCATION = 's3://egirgis-datalake-v1/athena-results/'
+    
+    if args.action == 'ask':
+        # 1. Get Context
+        schema = agent.get_table_schema(DB_NAME)
+        if not schema:
+            print("Could not fetch schema. Did the crawler run?")
+            return
+
+        # 2. Get SQL from AI
+        sql = agent.generate_sql(args.question, schema)
+        if not sql: return
+        
+        # 3. Run SQL
+        results = agent.run_query(sql, RESULTS_LOCATION)
+        
+        # 4. Show Answer
+        agent.print_results(results)
+
+def handle_pipeline(args, session):
+    """
+    Handles Data Pipeline tasks.
+    """
+    manager = PipelineManager(session)
+    # Define a dedicated bucket for the datalake
+    # We use a distinct name to avoid conflicts with the website bucket
+    DATALAKE_BUCKET = 'egirgis-datalake-v1' 
+
+    if args.action == 'deploy':
+        manager.deploy_infra(DATALAKE_BUCKET)
+    
+    elif args.action == 'upload-ingest':
+        # Uploads the ingestion script (mock)
+        print("Uploading ingestion script...") 
+        # Future: calls manager.upload_script(...)
+
+    elif args.action == 'upload-job':
+        script_path = 'cloud_intelligence_pipeline/glue_jobs/process_job.py'
+        manager.upload_script(DATALAKE_BUCKET, script_path, 'scripts/process_job.py')
+
+    elif args.action == 'create-job':
+        # Create the Glue Job
+        JOB_NAME = 'etl-process-orders'
+        ROLE_NAME = 'GlueServiceRole-Playground'
+        SCRIPT_S3 = f"{DATALAKE_BUCKET}/scripts/process_job.py"
+        manager.create_glue_job(JOB_NAME, ROLE_NAME, SCRIPT_S3)
+
+    elif args.action == 'start-job':
+        JOB_NAME = 'etl-process-orders'
+        manager.start_glue_job(JOB_NAME)
+
+    elif args.action == 'create-crawler':
+        CRAWLER_NAME = 'crawl-orders'
+        ROLE_NAME = 'GlueServiceRole-Playground'
+        DB_NAME = 'edu_etl_db'
+        # Point to the folder containing data (IMPORTANT: must end with / for proper crawling usually, or just the path)
+        TARGET_S3 = f"s3://{DATALAKE_BUCKET}/processed/orders_parquet/"
+        manager.create_crawler(CRAWLER_NAME, ROLE_NAME, DB_NAME, TARGET_S3)
+
+    elif args.action == 'start-crawler':
+        CRAWLER_NAME = 'crawl-orders'
+        manager.start_crawler(CRAWLER_NAME)
+
 
 if __name__ == "__main__":
     main()
