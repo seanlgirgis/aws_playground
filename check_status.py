@@ -21,10 +21,10 @@ try:
     s3 = session.client('s3')
     objects = s3.list_objects_v2(Bucket='egirgis-datalake-v1', Prefix='processed/orders_parquet/')
     if 'Contents' in objects:
-        print(f"✅ Found {len(objects['Contents'])} files/folders in processed/")
+        print(f"FOUND {len(objects['Contents'])} files/folders in processed/")
         for obj in objects['Contents']:
             print(f"   - {obj['Key']} ({obj['Size']} bytes)")
     else:
-        print("❌ S3 Processed folder is EMPTY. Job likely failed or didn't write.")
+        print("S3 Processed folder is EMPTY. Job likely failed or didn't write.")
 except Exception as e:
     print(f"Error checking S3: {e}")

@@ -1,5 +1,5 @@
 # env_setter.ps1
-$venvPath = "c:\py_venv\aws_playground"
+$venvPath = "C:\py_venv\aws_playground"
 $activateScript = Join-Path $venvPath "Scripts\Activate.ps1"
 
 if (Test-Path $activateScript) {
